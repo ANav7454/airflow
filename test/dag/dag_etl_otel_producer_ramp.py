@@ -13,7 +13,7 @@ import pytz
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': datetime(2024, 1, 1),
+    'start_date': datetime(2024, 5, 30),
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1
@@ -172,33 +172,14 @@ def ingest(*args, **kwargs):
     print(f"Sincronización completada exitosamente. Registros insertados: {inserted_records_count}")
 
 
-def transform(*args, **kwargs):
-    '''Transform data'''
-    print("task_transform")
-
-def Load(*args, **kwargs):
-    '''Load datta to PostgreSQL'''
-    print("task_load")    
-
 ingest_task = PythonOperator(
  task_id='ingest_task',
  python_callable=ingest,
  dag=dag,
 )
 
-transform_task = PythonOperator(
- task_id='transform_task',
- python_callable=transform,
- dag=dag,
-)
 
-load_task = PythonOperator(
- task_id='load_task',
- python_callable=Load,
- dag=dag,
-)
 
-ingest_task >> transform_task >> load_task
 
 
 
