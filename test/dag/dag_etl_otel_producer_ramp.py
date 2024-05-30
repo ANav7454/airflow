@@ -52,8 +52,8 @@ task_2 = PythonOperator(
 )
 
 task_3 = PythonOperator(
- task_id='task_2',
- python_callable=transform,
+ task_id='task_3',
+ python_callable=Load,
  dag=dag,
 )
 
