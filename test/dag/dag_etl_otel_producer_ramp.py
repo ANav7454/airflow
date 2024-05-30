@@ -115,8 +115,8 @@ def ingest(*args, **kwargs):
     # Convertir la columna _time a tipo datetime
     pivot_df['_time'] = pd.to_datetime(pivot_df['_time'])
 
-    # Filtrar los resultados que tengan intervalos de 10 minutos
-    filtered_df = pivot_df[pivot_df['_time'].dt.minute % 10 == 0].copy()
+    # Filtrar los resultados que no tengan intervalos de 10 minutos
+    filtered_df = pivot_df[(pivot_df['_time'].dt.minute % 10 == 0) & (pivot_df['_time'].dt.second == 0)].copy()
 
     # Usar una expresión regular para separar en dos columnas distintas
     filtered_df[['deployment', 'pod_id']] = filtered_df['k8s.pod.name'].str.extract(r'([a-zA-Z0-9\-]+)-([a-zA-Z0-9]+-[a-zA-Z0-9]+)')
@@ -167,6 +167,7 @@ def ingest(*args, **kwargs):
     pg_cursor.close()
     pg_conn.close()
     client.close()
+    
 
     print(f"Sincronización completada exitosamente. Registros insertados: {inserted_records_count}")
 
