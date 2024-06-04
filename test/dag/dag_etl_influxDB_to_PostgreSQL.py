@@ -1,18 +1,30 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-
-import warnings
-from influxdb_client import InfluxDBClient
-from influxdb_client.client.warnings import MissingPivotFunction
-warnings.simplefilter("ignore", MissingPivotFunction)
-
-
-import pandas as pd
-import re
 from datetime import datetime, timedelta
-import os
+import pandas as pd
 import psycopg2
 import pytz
+from influxdb_client import InfluxDBClient
+
+# Configuración básica de DAG
+config = {
+    'org': "optare",
+    'token': "KCbXUjsNG5ko_FVIa9vx2d9oS-WavbGP1I50UZ6xPN1Okzx6FIwZ3Az4GdTjq1B0v0dxbDR8lLS-u-Uq0Byj8A==",
+    'influxdb_url': "http://influxdb.observability-backend.svc.cluster.local:8086",
+    
+    'db_host': "postgres-feast.observability-backend.svc.cluster.local",
+    'db_port': '5432',
+    'db_database': "postgres",
+    'db_user': "feast",
+    'db_password': "feast",
+    'db_table': 'metrics_service',
+    
+    'bucket': "metrics",
+    'window_period': "10m",
+    'services_regex': "/^(nginx-deployment.*|java-.*)$/",
+    'default_start_time': datetime(1970, 1, 1, tzinfo=pytz.UTC)
+}
+
 
 default_args = {
     'owner': 'airflow',
@@ -24,67 +36,36 @@ default_args = {
 }
 
 dag = DAG(
-    'sync_influxdb_to_postgres',
+    'sync_etl_influxdb_to_postgres',
     default_args=default_args,
     description='Sync InfluxDB to PostgreSQL',
     schedule_interval=timedelta(minutes=10),
     tags=["i2cat_etl"]
 )
 
-def ingest(*args, **kwargs):
-    '''Ingest data from InfluxDB2'''
-    print("task_ingest")
+# Tarea de ingesta
+def ingest(ti):
+    print("Ingesting data from InfluxDB")
+    # Configuraciones y cliente de InfluxDB
 
-    org = "optare"
-    token = "KCbXUjsNG5ko_FVIa9vx2d9oS-WavbGP1I50UZ6xPN1Okzx6FIwZ3Az4GdTjq1B0v0dxbDR8lLS-u-Uq0Byj8A=="
-    url="http://influxdb.observability-backend.svc.cluster.local:8086"
-
-    db_host = "postgres-feast.observability-backend.svc.cluster.local"
-    db_port = '5432'
-    db_database = "postgres"
-    db_user = "feast"
-    db_password = "feast"
-    db_table = 'metrics_service'
-
-    client = InfluxDBClient(url=url,token=token,org=org)
-
-    pg_conn = psycopg2.connect(host=db_host, database=db_database, user=db_user, password=db_password)
+    pg_conn = psycopg2.connect(host=config['db_host'], database=config['db_database'], user=config['db_user'], password=config['db_password'])
     pg_cursor = pg_conn.cursor()
-
-    # Asegúrate de que la tabla exista en PostgreSQL
-    pg_cursor.execute(f'''
-        CREATE TABLE IF NOT EXISTS {db_table} (
-        _measurement VARCHAR NOT NULL,
-        _time TIMESTAMP WITH TIME ZONE NOT NULL,
-        deployment VARCHAR NOT NULL,
-        container_cpu_time FLOAT,
-        container_cpu_utilization FLOAT,
-        container_memory_usage FLOAT,
-        k8s_pod_cpu_time FLOAT,
-        k8s_pod_cpu_utilization FLOAT,
-        k8s_pod_network_io FLOAT,
-        PRIMARY KEY (_time, deployment, _measurement)
-        );
-    ''')
-    pg_conn.commit()
-
     # Obtener la última marca de tiempo de sincronización de PostgreSQL
-    pg_cursor.execute(f'SELECT MAX(_time) FROM {db_table};')
+    pg_cursor.execute(f'SELECT MAX(_time) FROM {config['db_table']};')
     last_sync_time = pg_cursor.fetchone()[0]
+    pg_cursor.close()
+    pg_conn.close()
 
     # Si nunca se han sincronizado datos, establecer una fecha de inicio por defecto
     if last_sync_time is None:
         last_sync_time = datetime(1970, 1, 1, tzinfo=pytz.UTC)
 
-    bucket = "metrics"
     timeRangeStart = last_sync_time.isoformat()
     timeRangeStop = datetime.now(pytz.UTC).isoformat()
-    windowPeriod = "10m"
-    services = "/^(nginx-deployment.*|java-.*)$/"
-    #services = "/^(java-.*)$/"
+
 
     query = f'''
-                from(bucket: "{bucket}")
+                from(bucket: "{config['bucket']}")
                 |> range(start: {timeRangeStart}, stop: {timeRangeStop})
                 |> filter(fn: (r) => 
                     r["_measurement"] == "container.cpu.utilization" or
@@ -97,20 +78,31 @@ def ingest(*args, **kwargs):
                     r["_measurement"] == "k8.pod.network.io"
                     ) 
                 |> filter(fn: (r) => r["_field"] == "gauge" or r["_field"] == "counter")
-                |> filter(fn: (r) => r["k8s.pod.name"] =~ {services})
-                |> aggregateWindow(every: {windowPeriod}, fn: mean, createEmpty: false)
-                '''
+                |> filter(fn: (r) => r["k8s.pod.name"] =~ {config['services_regex']})
+                |> aggregateWindow(every: {config['windowPeriod']}, fn: mean, createEmpty: false)
     
+            '''
+    
+    client = InfluxDBClient(url=url,token=config['token'],org=config['org'])
     query_api = client.query_api()
-    result = query_api.query_data_frame(query=query, org=org)
+    result = query_api.query_data_frame(query=query, org=config['org'])
+    client.close()
+
+    # Guardar el resultado en XComs
+    ti.xcom_push(key='raw_data', value=result)
+
+# Tarea de transformación
+def transform(ti):
+    print("Transforming data")
+    # Recoger los datos del paso anterior
+    raw_data = ti.xcom_pull(key='raw_data', task_ids='ingest_task')
     
     # Concatenar los DataFrames
-    concatenated_df = pd.concat(result, ignore_index=True)
+    concatenated_df = pd.concat(raw_data, ignore_index=True)
 
     # Eliminar la columna 'table'
-    concatenated_df = concatenated_df.drop(columns=['table'])
-    df = concatenated_df
-
+    df = concatenated_df.drop(columns=['table'])
+    
     # Pivotar el DataFrame
     pivot_df = df.pivot_table(index=['_start', '_stop', '_time', 'k8s.namespace.name', 'k8s.node.name', 'k8s.pod.name'], 
                           columns='_measurement', 
@@ -135,11 +127,43 @@ def ingest(*args, **kwargs):
     numeric_cols = ['container.cpu.time','container.cpu.utilization','container.memory.usage','k8s.pod.cpu.time','k8s.pod.cpu.utilization','k8s.pod.network.io']
     df_grouped = filtered_df.groupby(['_time', 'deployment'])[numeric_cols].mean().reset_index()
 
-    # Procesar los resultados obtenidos
-    inserted_records_count = 0  # Contador de registros insertados
+    transformed_data = df_grouped
 
-    # Insertar los datos filtrados en PostgreSQL
-    for index, row in df_grouped.iterrows():
+    # Guardar los datos transformados para la siguiente tarea
+    ti.xcom_push(key='transformed_data', value=transformed_data)
+
+# Tarea de carga
+def load(ti):
+    print("Loading data into PostgreSQL")
+    # Recoger los datos transformados
+    transformed_data = ti.xcom_pull(key='transformed_data', task_ids='transform_task')
+    # Conexión con PostgreSQL y carga de datos
+    # Configuraciones de la base de datos
+    
+    pg_conn = psycopg2.connect(host=config['db_host'], database=config['db_database'], user=config['db_user'], password=config['db_password'])
+    pg_cursor = pg_conn.cursor()
+
+    # Asegúrate de que la tabla exista en PostgreSQL
+    pg_cursor.execute(f'''
+        CREATE TABLE IF NOT EXISTS {db_table} (
+        _measurement VARCHAR NOT NULL,
+        _time TIMESTAMP WITH TIME ZONE NOT NULL,
+        deployment VARCHAR NOT NULL,
+        container_cpu_time FLOAT,
+        container_cpu_utilization FLOAT,
+        container_memory_usage FLOAT,
+        k8s_pod_cpu_time FLOAT,
+        k8s_pod_cpu_utilization FLOAT,
+        k8s_pod_network_io FLOAT,
+        PRIMARY KEY (_time, deployment, _measurement)
+        );
+    ''')
+    pg_conn.commit()
+
+    # Número de resultados a insertar
+    inserted_records_count = 0  # Contador de registros insertados
+    # Insertar datos transformados (simulando)
+    for index, row in transformed_data.iterrows():
         # Extraer los valores de las columnas del DataFrame
         _time = row['_time']
         deployment = row['deployment']
@@ -149,10 +173,9 @@ def ingest(*args, **kwargs):
         k8s_pod_cpu_time = row.get('k8s.pod.cpu.time', None)
         k8s_pod_cpu_utilization = row.get('k8s.pod.cpu.utilization', None)
         k8s_pod_network_io = row.get('k8s.pod.network.io', None)
-
         # Insertar datos en PostgreSQL
         insert_query = f'''
-            INSERT INTO {db_table} (
+            INSERT INTO {config['db_table']} (
                 _measurement, _time, deployment, 
                 container_cpu_time, container_cpu_utilization, container_memory_usage, 
                 k8s_pod_cpu_time, k8s_pod_cpu_utilization, k8s_pod_network_io
@@ -165,22 +188,31 @@ def ingest(*args, **kwargs):
             k8s_pod_cpu_time, k8s_pod_cpu_utilization, k8s_pod_network_io
         ))
         inserted_records_count += 1
-
+    print(f'Número de registros insertados: {inserted_records_count}')
     pg_conn.commit()
-
     pg_cursor.close()
     pg_conn.close()
-    client.close()
-    
 
+# Definición de tareas en Airflow
 ingest_task = PythonOperator(
- task_id='ingest_task',
- python_callable=ingest,
- dag=dag,
+    task_id='ingest_task',
+    python_callable=ingest,
+    dag=dag,
 )
 
+transform_task = PythonOperator(
+    task_id='transform_task',
+    python_callable=transform,
+    provide_context=True,
+    dag=dag,
+)
 
+load_task = PythonOperator(
+    task_id='load_task',
+    python_callable=load,
+    provide_context=True,
+    dag=dag,
+)
 
-
-
-
+# Establecer dependencias de las tareas
+ingest_task >> transform_task >> load_task
