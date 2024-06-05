@@ -51,7 +51,8 @@ def ingest(ti):
     pg_conn = psycopg2.connect(host=config['db_host'], database=config['db_database'], user=config['db_user'], password=config['db_password'])
     pg_cursor = pg_conn.cursor()
     # Obtener la última marca de tiempo de sincronización de PostgreSQL
-    pg_cursor.execute(f'SELECT MAX(_time) FROM {config['db_table']};')
+    table = config['db_table']
+    pg_cursor.execute(f'SELECT MAX(_time) FROM {table};')
     last_sync_time = pg_cursor.fetchone()[0]
     pg_cursor.close()
     pg_conn.close()
