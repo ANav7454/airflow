@@ -40,7 +40,9 @@ dag = DAG(
     default_args=default_args,
     description='Sync InfluxDB to PostgreSQL',
     schedule_interval=timedelta(minutes=10),
-    tags=["i2cat_etl"]
+    tags=["i2cat_etl"],
+    concurrency=5,  # Limita la concurrencia a 5 tareas
+    max_active_runs=1  # Limita a 1 ejecución activa del DAG
 )
 
 # Tarea de ingesta
