@@ -84,7 +84,7 @@ def ingest(ti):
     
             '''
     
-    client = InfluxDBClient(url=url,token=config['token'],org=config['org'])
+    client = InfluxDBClient(url=config['influxdb_url'],token=config['token'],org=config['org'])
     query_api = client.query_api()
     result = query_api.query_data_frame(query=query, org=config['org'])
     client.close()
