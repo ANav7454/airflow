@@ -17,7 +17,7 @@ config = {
     'db_database': "postgres",
     'db_user': "feast",
     'db_password': "feast",
-    'db_table': 'metrics_service',
+    'db_table': "metrics_service",
     
     'bucket': "metrics",
     'window_period': "10m",
