@@ -1,6 +1,6 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 import pandas as pd
 import psycopg2
 import pytz
@@ -29,10 +29,11 @@ config = {
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': datetime(2024, 5, 30),
+    'start_date': datetime.combine(datetime.now().date(), time(8, 0)),  # Empieza a las 8:00 del día actual
     'email_on_failure': False,
     'email_on_retry': False,
-    'retries': 1
+    'retries': 1,
+    'end_date': datetime.combine(datetime.now().date(), time(18, 0)),  # Termina a las 18:00 del día actual
 }
 
 dag = DAG(
