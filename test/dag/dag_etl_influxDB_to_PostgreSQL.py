@@ -51,7 +51,7 @@ def ingest(ti):
     pg_conn = psycopg2.connect(host=config['db_host'], database=config['db_database'], user=config['db_user'], password=config['db_password'])
     pg_cursor = pg_conn.cursor()
     # Obtener la última marca de tiempo de sincronización de PostgreSQL
-    pg_cursor.execute(f'SELECT MAX(_time) FROM metrics_service;')
+    pg_cursor.execute(f'SELECT MAX(_time) FROM {config['db_table']};')
     last_sync_time = pg_cursor.fetchone()[0]
     pg_cursor.close()
     pg_conn.close()
@@ -79,7 +79,7 @@ def ingest(ti):
                     ) 
                 |> filter(fn: (r) => r["_field"] == "gauge" or r["_field"] == "counter")
                 |> filter(fn: (r) => r["k8s.pod.name"] =~ {config['services_regex']})
-                |> aggregateWindow(every: {config['windowPeriod']}, fn: mean, createEmpty: false)
+                |> aggregateWindow(every: {config['window_period']}, fn: mean, createEmpty: false)
     
             '''
     
@@ -145,7 +145,7 @@ def load(ti):
 
     # Asegúrate de que la tabla exista en PostgreSQL
     pg_cursor.execute(f'''
-        CREATE TABLE IF NOT EXISTS {db_table} (
+        CREATE TABLE IF NOT EXISTS {config['db_table']} (
         _measurement VARCHAR NOT NULL,
         _time TIMESTAMP WITH TIME ZONE NOT NULL,
         deployment VARCHAR NOT NULL,
