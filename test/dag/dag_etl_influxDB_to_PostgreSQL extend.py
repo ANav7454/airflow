@@ -37,9 +37,9 @@ default_args = {
 }
 
 dag = DAG(
-    'sync_etl_influxdb_to_postgres',
+    'sync_etl_influxdb_to_postgres_extend',
     default_args=default_args,
-    description='Sync InfluxDB to PostgreSQL',
+    description='Sync InfluxDB to PostgreSQL infra extend',
     schedule_interval=timedelta(minutes=10),
     tags=["i2cat_etl"],
     concurrency=5,  # Limita la concurrencia a 5 tareas
