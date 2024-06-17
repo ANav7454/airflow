@@ -51,6 +51,7 @@ def ingest(ti):
     print("Ingesting data from InfluxDB")
     # Configuraciones y cliente de InfluxDB
 
+    last_sync_time = None
     pg_conn = psycopg2.connect(host=config['db_host'], database=config['db_database'], user=config['db_user'], password=config['db_password'])
     pg_cursor = pg_conn.cursor()
     # Obtener la última marca de tiempo de sincronización de PostgreSQL
