@@ -10,18 +10,18 @@ from influxdb_client import InfluxDBClient
 config = {
     'org': "optare",
     'token': "KCbXUjsNG5ko_FVIa9vx2d9oS-WavbGP1I50UZ6xPN1Okzx6FIwZ3Az4GdTjq1B0v0dxbDR8lLS-u-Uq0Byj8A==",
-    'influxdb_url': "http://influxdb.observability-backend.svc.cluster.local:8086",
+    'influxdb_url': "http://influxdb.observability.svc.cluster.local:8086",
     
-    'db_host': "postgres-feast.observability-backend.svc.cluster.local",
+    'db_host': "postgres.observability.svc.cluster.local",
     'db_port': '5432',
-    'db_database': "postgres",
-    'db_user': "feast",
-    'db_password': "feast",
-    'db_table': "metrics_service",
+    'db_database': "metrics",
+    'db_user': "admin",
+    'db_password': "admin1234",
+    'db_table': "metrics_test",
     
     'bucket': "metrics",
     'window_period': "10m",
-    'services_regex': "/^(nginx-deployment.*|java-.*)$/",
+    'services_regex': "/^(dummy-python-.*|java-.*)$/",
     'default_start_time': datetime(1970, 1, 1, tzinfo=pytz.UTC)
 }
 
@@ -29,7 +29,7 @@ config = {
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': datetime(2024, 5, 6, tzinfo=pytz.UTC), #datetime.combine(datetime.now().date(), time(8, 0)),  # Empieza a las 8:00 del día actual
+    'start_date': datetime(2024, 8, 1, tzinfo=pytz.UTC), #datetime.combine(datetime.now().date(), time(8, 0)),  # Empieza a las 8:00 del día actual
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
