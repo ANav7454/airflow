@@ -114,10 +114,10 @@ def transform(ti):
     
     #get columns
     columns = ['_time','one_vm_id','_measurement','_value']
-    telemetry_input = telemetry_input[columns]
+    raw_data = raw_data[columns]
     
     # Pivotar el DataFrame
-    pivot_df = telemetry_input.pivot_table(index=['_time', 'one_vm_id'], columns='_measurement', values='_value').reset_index()
+    pivot_df = raw_data.pivot_table(index=['_time', 'one_vm_id'], columns='_measurement', values='_value').reset_index()
     
     # Convertir la columna _time a tipo datetime
     pivot_df['_time'] = pd.to_datetime(pivot_df['_time'])
