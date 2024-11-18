@@ -58,7 +58,7 @@ def ingest(ti):
         CREATE TABLE IF NOT EXISTS {config['db_table']} (
         _time TIMESTAMP WITH TIME ZONE NOT NULL,
         service_id VARCHAR NOT NULL,
-        opennebula_host_cpu_maximum_ratio FLOAT,
+        opennebula_libvirt_block_devices FLOAT,
         PRIMARY KEY (_time, service_id)
         );
     ''')
@@ -83,7 +83,7 @@ def ingest(ti):
         from(bucket: "{config['bucket']}")
             |> range(start: {timeRangeStart}, stop: {timeRangeStop})
             |> filter(fn: (r) =>
-                r["_measurement"] == "opennebula_host_cpu_maximum_ratio" 
+                r["_measurement"] == "opennebula_libvirt_block_devices" 
              )
             |> filter(fn: (r) => r["_field"] == "gauge")
             |> aggregateWindow(every: {config['window_period']}, fn: mean, createEmpty: false)
@@ -141,7 +141,7 @@ def load(ti):
         # Extraer los valores de las columnas del DataFrame
         _time = row['_time']
         service_id = row['one_vm_id']
-        opennebula_host_cpu_maximum_ratio = row['opennebula_host_cpu_maximum_ratio'] 
+        opennebula_libvirt_block_devices = row['opennebula_libvirt_block_devices'] 
     
     
         # Insertar datos en PostgreSQL
@@ -149,7 +149,7 @@ def load(ti):
             INSERT INTO {config['db_table']} (
                 _time,
                 service_id,
-                opennebula_host_cpu_maximum_ratio
+                opennebula_libvirt_block_devices
                 )
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (_time,service_id) DO NOTHING;
@@ -157,7 +157,7 @@ def load(ti):
         pg_cursor.execute(insert_query, (
             _time,
             service_id,
-            opennebula_host_cpu_maximum_ratio
+            opennebula_libvirt_block_devices
             )
             )
     
