@@ -151,7 +151,7 @@ def load(ti):
                 service_id,
                 opennebula_libvirt_block_devices
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s)
                 ON CONFLICT (_time,service_id) DO NOTHING;
                 '''
         pg_cursor.execute(insert_query, (
