@@ -42,7 +42,7 @@ dag = DAG(
     schedule_interval=timedelta(minutes=1),
     tags=["i2cat_etl"],
     concurrency=5,  # Limita la concurrencia a 5 tareas
-    max_active_runs=2  # Limita a 1 ejecución activa del DAG
+    max_active_runs=5  # Limita a 1 ejecución activa del DAG
 )
 
 # Tarea de ingesta
