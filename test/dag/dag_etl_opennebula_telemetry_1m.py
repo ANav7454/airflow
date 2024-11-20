@@ -101,7 +101,7 @@ def ingest(ti):
     client = InfluxDBClient(url=config['influxdb_url'],token=config['token'],org=config['org'])
     query_api = client.query_api()
     result = query_api.query_data_frame(query=query, org=config['org'])
-    result = pd.concat(result, ignore_index=True)
+    #result = pd.concat(result, ignore_index=True)
     client.close()
 
     # Guardar el resultado en XComs
