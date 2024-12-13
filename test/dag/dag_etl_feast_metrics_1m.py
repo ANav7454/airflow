@@ -147,27 +147,26 @@ def ingest(ti):
 
     client.close()
 
-    
-    if all(isinstance(item, pd.DataFrame) for item in result):
+    if isinstance(result, list):  # Verifica si es una lista
         result = pd.concat(result, ignore_index=True)
-        columns = ['_time', '_measurement', '_value']
-        result = result[columns]
     else:
-        raise TypeError("Not all items in the list are DataFrames.")
+        result = result  # Si no es lista, asume que ya es un DataFrame
+        result.head(2)
 
-    if all(isinstance(item, pd.DataFrame) for item in result2):
+    # Combina todos los DataFrames en uno solo
+    if isinstance(result2, list):  # Verifica si es una lista
         result2 = pd.concat(result2, ignore_index=True)
-        columns = ['_time', '_measurement', '_value']
-        result2 = result2[columns]
     else:
-        raise TypeError("Not all items in the list are DataFrames.")
+        result2 = result2  # Si no es lista, asume que ya es un DataFrame
+        result2.head(2)
 
-    if all(isinstance(item, pd.DataFrame) for item in result3):
+    # Combina todos los DataFrames en uno solo
+    if isinstance(result3, list):  # Verifica si es una lista
         result3 = pd.concat(result3, ignore_index=True)
-        columns = ['_time', '_measurement', '_value']
-        result3 = result3[columns]
     else:
-        raise TypeError("Not all items in the list are DataFrames.")
+        result3 = result3  # Si no es lista, asume que ya es un DataFrame
+        result3.head(2)
+
 
     columns = ['_time','_measurement','_value']
     result = result[columns]
