@@ -20,7 +20,7 @@ config = {
     'db_table': "metrics_feast_1m",
     
     'bucket': "metrics",
-    'window_period': "1m",
+    'window_period': "10m",
      'services_regex': "/^(feature-store-deployment-.*)$/",
     'default_start_time': datetime(1970, 1, 1, tzinfo=pytz.UTC)
 }
@@ -196,7 +196,7 @@ def transform(ti):
     # Convertir la columna _time a tipo datetime
     raw_data['_time'] = pd.to_datetime(raw_data['_time'])
 
-    # Filtrar los resultados que tengan intervalos de 1 minuto exactos
+    # Filtrar los resultados que tengan intervalos de 10 minuto exactos
     filtered_df = raw_data[(raw_data['_time'].dt.minute % 10 == 0) & (raw_data['_time'].dt.second == 0)].copy()
     transformed_data = filtered_df
 
