@@ -147,13 +147,7 @@ def ingest(ti):
 
     client.close()
 
-    # Guardar el resultado en XComs
-    ti.xcom_push(key='raw_data', value=result)
-
-# Tarea de transformación
-def transform(ti):
-    print("Transforming data")
-
+    
     if all(isinstance(item, pd.DataFrame) for item in result):
         result = pd.concat(result, ignore_index=True)
         columns = ['_time', '_measurement', '_value']
@@ -174,11 +168,7 @@ def transform(ti):
         result3 = result3[columns]
     else:
         raise TypeError("Not all items in the list are DataFrames.")
-    
-    # Recoger los datos del paso anterior
-    raw_data = ti.xcom_pull(key='raw_data', task_ids='ingest_task')
-    
-    #get columns
+
     columns = ['_time','_measurement','_value']
     result = result[columns]
     result2 = result2[columns]
@@ -192,12 +182,22 @@ def transform(ti):
 
     merged_result = pd.merge(pivot_df, pivot_df2, on='_time', how='inner')  # You can change 'outer' to 'inner', 'left', or 'right' as needed
     merged_result = pd.merge(merged_result, pivot_df3, on='_time', how='inner')  # You can change 'outer' to 'inner', 'left', or 'right' as needed
+    # Guardar el resultado en XComs
+    ti.xcom_push(key='raw_data', value=merged_result)
+
+# Tarea de transformación
+def transform(ti):
+    print("Transforming data")
+
+    # Recoger los datos del paso anterior
+    raw_data = ti.xcom_pull(key='raw_data', task_ids='ingest_task')
+    
     
     # Convertir la columna _time a tipo datetime
-    merged_result['_time'] = pd.to_datetime(pivot_df['_time'])
+    raw_data['_time'] = pd.to_datetime(raw_data['_time'])
 
     # Filtrar los resultados que tengan intervalos de 1 minuto exactos
-    filtered_df = merged_result[(merged_result['_time'].dt.minute % 10 == 0) & (merged_result['_time'].dt.second == 0)].copy()
+    filtered_df = raw_data[(raw_data['_time'].dt.minute % 10 == 0) & (raw_data['_time'].dt.second == 0)].copy()
     transformed_data = filtered_df
 
     # Guardar los datos transformados para la siguiente tarea
