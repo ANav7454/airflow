@@ -134,7 +134,7 @@ def ingest(ti):
             r["_measurement"] == "online.http.server.duration" 
                 )
         |> filter(fn: (r) => r["_field"] == "sum")
-        |> filter(fn: (r) => r["k8s.pod.name"] == "=~ {config['services_regex']}")
+        |> filter(fn: (r) => r["k8s.pod.name"] =~ {config['services_regex']})
         |> aggregateWindow(every: {config['window_period']}, fn: mean, createEmpty: false)
         |> yield(name: "mean")
         '''
