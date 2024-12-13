@@ -21,6 +21,7 @@ config = {
     
     'bucket': "metrics",
     'window_period': "1m",
+     'services_regex': "/^(feature-store-deployment-.*)$/",
     'default_start_time': datetime(1970, 1, 1, tzinfo=pytz.UTC)
 }
 
@@ -104,7 +105,7 @@ def ingest(ti):
             r["_measurement"] == "k8s.pod.memory.working_set"
                 )
         |> filter(fn: (r) => r["_field"] == "gauge")
-        |> filter(fn: (r) => r["k8s.pod.name"] == "feature-store-deployment-7954d6466-npbp8")
+        |> filter(fn: (r) => r["k8s.pod.name"] =~ {config['services_regex']})
         |> aggregateWindow(every: {config['window_period']}, fn: mean, createEmpty: false)
         |> yield(name: "mean")
         '''
@@ -120,7 +121,7 @@ def ingest(ti):
             r["_measurement"] == "k8s.pod.network.errors" 
                 )
         |> filter(fn: (r) => r["_field"] == "counter")
-        |> filter(fn: (r) => r["k8s.pod.name"] == "feature-store-deployment-7954d6466-npbp8")
+        |> filter(fn: (r) => r["k8s.pod.name"] =~ {config['services_regex']})
         |> aggregateWindow(every: {config['window_period']}, fn: mean, createEmpty: false)
         |> yield(name: "mean")
         '''
@@ -133,7 +134,7 @@ def ingest(ti):
             r["_measurement"] == "online.http.server.duration" 
                 )
         |> filter(fn: (r) => r["_field"] == "sum")
-        |> filter(fn: (r) => r["k8s.pod.name"] == "feature-store-deployment-7954d6466-npbp8")
+        |> filter(fn: (r) => r["k8s.pod.name"] == "=~ {config['services_regex']}")
         |> aggregateWindow(every: {config['window_period']}, fn: mean, createEmpty: false)
         |> yield(name: "mean")
         '''
