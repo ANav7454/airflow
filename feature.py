@@ -9,10 +9,38 @@ from feast.on_demand_feature_view import on_demand_feature_view
 from feast.types import Float32, Float64, Int64, String
 # Define an entity for the driver. You can think of an entity as a primary key used to
 # fetch features.
-driver_opennebula = Entity(name="metrics_edge", join_keys=["service_id"])
+driver_opennebula = Entity(name="metrics_edge", join_keys=["one_vm_name"])
 driver_stats_source_opennebula = PostgreSQLSource(
     name="metrics__service_opennebula",
-    query="SELECT * FROM metrics_edge",
+    query='''SELECT 
+            holo._time,
+            holo.one_vm_name,
+            holo.one_vm_worker,
+            holo.orchestrator_cloud_k8s_pod_cpu_utilization,
+            holo.orchestrator_media_k8s_pod_cpu_utilization,
+            k8s.opennebula_k8s_container_cpu_limit,
+            k8s.opennebula_k8s_container_cpu_request,
+            k8s.opennebula_k8s_node_allocatable_cpu,
+            k8s.opennebula_k8s_node_cpu_utilization,
+            libvirt.opennebula_libvirt_cpu_seconds_total,
+            libvirt.opennebula_libvirt_cpu_system_seconds_total,
+            libvirt.opennebula_libvirt_cpu_user_seconds_total,
+            libvirt.opennebula_libvirt_vcpu_maximum,
+            libvirt.opennebula_libvirt_vcpu_online,
+            libvirt.opennebula_libvirt_vcpu_state,
+            libvirt.opennebula_libvirt_vcpu_time_seconds_total,
+            libvirt.opennebula_libvirt_vcpu_wait_seconds_total
+        FROM 
+            metrics_holo_app_1m AS holo
+        INNER JOIN 
+            metrics_opennebula_libvirt_1m AS libvirt
+        ON 
+            holo._time = libvirt._time AND holo.one_vm_worker = libvirt.one_vm_worker
+        INNER JOIN 
+            metrics_opennebula_k8s_1m AS k8s
+        ON 
+            holo._time = k8s._time AND holo.one_vm_name = k8s.one_vm_name
+        ''',
     timestamp_field="_time",
     #created_timestamp_column="created",
 )
@@ -27,11 +55,20 @@ metrics_opennebula_view = FeatureView(
     # for both materialization of features into a store, and are used as references
     # during retrieval for building a training dataset or serving features
     schema=[
-        Field(name="opennebula_libvirt_memory_available_bytes", dtype=Float32),
-        Field(name="opennebula_libvirt_memory_maximum_bytes", dtype=Float32),
+        Field(name="orchestrator_cloud_k8s_pod_cpu_utilization", dtype=Float32),
+        Field(name="orchestrator_media_k8s_pod_cpu_utilization", dtype=Float32),
+        Field(name="opennebula_k8s_container_cpu_limit", dtype=Float32),
+        Field(name="opennebula_k8s_container_cpu_request", dtype=Float32),
+        Field(name="opennebula_k8s_node_allocatable_cpu", dtype=Float32),
+        Field(name="opennebula_k8s_node_cpu_utilization", dtype=Float32),
         Field(name="opennebula_libvirt_cpu_seconds_total", dtype=Float32),
         Field(name="opennebula_libvirt_cpu_system_seconds_total", dtype=Float32),
-        Field(name="opennebula_libvirt_cpu_user_seconds_total", dtype=Float32)
+        Field(name="opennebula_libvirt_cpu_user_seconds_total", dtype=Float32),
+        Field(name="opennebula_libvirt_vcpu_maximum", dtype=Float32),
+        Field(name="opennebula_libvirt_vcpu_online", dtype=Float32),
+        Field(name="opennebula_libvirt_vcpu_state", dtype=Float32),
+        Field(name="opennebula_libvirt_vcpu_time_seconds_total", dtype=Float32),
+        Field(name="opennebula_libvirt_vcpu_wait_seconds_total", dtype=Float32)
     ],
     online=True,
     source=driver_stats_source_opennebula,
