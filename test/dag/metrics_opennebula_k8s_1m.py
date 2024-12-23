@@ -19,11 +19,11 @@ config = {
     'db_database': "metrics",
     'db_user': "admin",
     'db_password': "admin1234",
-    'db_table': "metrics_holo_app_1m",
+    'db_table': "metrics_opennebula_k8s_1m",
     
     'bucket': "metrics",
     'window_period': "1m",
-    'holo_app_regex': "/^(orchestrator-.*)$/",
+    'workers_regex': "/^(oneke-ip-.*)$/",
     'default_start_time': datetime(1970, 1, 1, tzinfo=pytz.UTC)
 }
 
@@ -39,9 +39,9 @@ default_args = {
 }
 
 dag = DAG(
-    'metrics_holo_app_1m',
+    'metrics_opennebula_k8s_1m',
     default_args=default_args,
-    description='Metrics holo app 1m',
+    description='Metrics Opennebula k8s 1m',
     schedule_interval=timedelta(minutes=1),
     tags=["i2cat_etl"],
     concurrency=5,  # Limita la concurrencia a 5 tareas
@@ -61,9 +61,10 @@ def ingest(ti):
             CREATE TABLE IF NOT EXISTS {config['db_table']} (
             _time TIMESTAMP WITH TIME ZONE NOT NULL,
             one_vm_name VARCHAR NOT NULL,
-            one_vm_worker VARCHAR NOT NULL,
-            orchestrator_cloud_k8s_pod_cpu_utilization FLOAT,
-            orchestrator_media_k8s_pod_cpu_utilization FLOAT,
+            opennebula_k8s_container_cpu_limit FLOAT,
+            opennebula_k8s_container_cpu_request FLOAT,
+            opennebula_k8s_node_allocatable_cpu FLOAT,
+            opennebula_k8s_node_cpu_utilization FLOAT,
             PRIMARY KEY (_time, one_vm_name)
             );
         ''')
@@ -84,15 +85,19 @@ def ingest(ti):
 
 
     query = f'''
-        from(bucket: "{config['bucket']}")
-        |> range(start: {timeRangeStart}, stop: {timeRangeStop})
-        |> filter(fn: (r) =>
-            r["_measurement"] == "k8s.pod.cpu.utilization")
-        |> filter(fn: (r) => r["_field"] == "gauge")
-        |> filter(fn: (r) => r["k8s.pod.name"] =~ {config['holo_app_regex']})
-        |> aggregateWindow(every: {config['window_period']}, fn: mean, createEmpty: false)
-        |> yield(name: "mean")
-        '''
+    from(bucket: "{config['bucket']}")
+    |> range(start: {timeRangeStart}, stop: {timeRangeStop})
+    |> filter(fn: (r) => r["_field"] == "gauge")
+    |> filter(fn: (r) =>
+        r["_measurement"] == "k8s.container.cpu_limit" or
+        r["_measurement"] == "k8s.container.cpu_request" or
+        r["_measurement"] == "k8s.node.allocatable_cpu" or
+        r["_measurement"] == "k8s.node.cpu.utilization")
+    |> aggregateWindow(every: {config['window_period']}, fn: mean, createEmpty: false)
+    |> filter(fn: (r) => r["k8s.node.name"] =~ {config['workers_regex']})
+    |> yield(name: "mean")
+
+    '''
         
     client = InfluxDBClient(url=config['influxdb_url'],token=config['token'],org=config['org'])
     query_api = client.query_api()
@@ -113,50 +118,26 @@ def transform(ti):
         raw_data = pd.concat(raw_data, ignore_index=True)
     else:
         raw_data = raw_data  # Si no es lista, asume que ya es un DataFrame
-    raw_data = raw_data[raw_data['one_vm_name'].notna()]
 
-    # Función para normalizar el campo one_vm_name
-    def normalize_name(name):
-        # Usar una expresión regular para eliminar todo después del primer paréntesis
-        return re.sub(r"_\(.*\)$", "", name)
+    columns = ['_time','_measurement','_value','k8s.node.name']
+    result = raw_data[columns]
 
-    # Función personalizada para normalizar `k8s.pod.name`
-    def normalize_pod_name(name):
-        return "orchestrator_"+name.split('-')[1]  # Mantener solo la parte antes del primer guion
-    
-    # Seleccionar las columnas relevantes y crear una copia explícita
-    columns = ['_time', '_measurement', '_value', 'one_vm_name', 'one_vm_worker', 'k8s.pod.name']
-    holo_app = raw_data[columns].copy()  # Agrega .copy() para evitar SettingWithCopyWarning
+    result_sorted = result.sort_values(by='_time', ascending=False)
+    result_sorted = result_sorted.reset_index(drop=True)
+    result = result_sorted
+    result["_measurement"] = "opennebula." + result["_measurement"] 
 
-    # Modificar las columnas utilizando .loc
-    holo_app.loc[:, 'one_vm_name'] = holo_app['one_vm_name'].apply(normalize_name)
-    holo_app.loc[:, 'k8s.pod.name'] = holo_app['k8s.pod.name'].apply(normalize_pod_name)
-
-    # Ordenar los valores y reiniciar el índice
-    holo_app_sorted = holo_app.sort_values(by='_time', ascending=False).reset_index(drop=True)
-
-    # Concatenar valores para modificar '_measurement'
-    holo_app_sorted['_measurement'] = holo_app_sorted['k8s.pod.name'] + "." + holo_app_sorted['_measurement']
-
-    # Eliminar la columna 'k8s.pod.name' ya que no se necesita más
-    holo_app_sorted = holo_app_sorted.drop(columns=["k8s.pod.name"])
-
-    # Reemplazar los puntos (.) por guiones bajos (_) en '_measurement'
-    holo_app_sorted['_measurement'] = holo_app_sorted['_measurement'].str.replace(".", "_")
-
-    # Agrupar y calcular el promedio de _value
-    grouped_df = holo_app_sorted.groupby(["_time", "_measurement", "one_vm_name", "one_vm_worker"])["_value"].mean().reset_index()
-    grouped_df_sorted = grouped_df.sort_values(by='_time', ascending=False).reset_index(drop=True)
+    # Renombrar la columna `k8s.node.name` a `one_vm_name`
+    result["_measurement"] = result["_measurement"].str.replace(".", "_")
+    result.columns = result.columns.str.replace(r'\.', '_', regex=True)
 
     # Pivotar los datos e incluir `one_vm_name`
-    pivot_df = grouped_df_sorted.pivot_table(index=['_time', 'one_vm_name','one_vm_worker'], columns='_measurement', values='_value', dropna=False).reset_index()
+    pivot_df = result.pivot_table(index=['_time', 'k8s_node_name'], columns='_measurement', values='_value', dropna=False).reset_index()
     pivot_df = pivot_df.dropna()
-    
-    # Convertir la columna _time a tipo datetime
-    raw_data['_time'] = pd.to_datetime(raw_data['_time'])
 
-    # Filtrar los resultados que tengan intervalos de 1 minuto exacto
+    pivot_df['_time'] = pd.to_datetime(pivot_df['_time'])
     filtered_df = pivot_df[(pivot_df['_time'].dt.second == 0)].copy()
+   
     transformed_data = filtered_df
 
     # Guardar los datos transformados para la siguiente tarea
@@ -180,29 +161,33 @@ def load(ti):
         
         # Extraer los valores de las columnas del DataFrame
         _time = row['_time']
-        one_vm_name = row['one_vm_name']
-        one_vm_worker = row['one_vm_worker']
-        orchestrator_cloud_k8s_pod_cpu_utilization = row['orchestrator_cloud_k8s_pod_cpu_utilization'] 
-        orchestrator_media_k8s_pod_cpu_utilization = row['orchestrator_media_k8s_pod_cpu_utilization'] 
-            
+        one_vm_name = row['k8s_node_name']
+        opennebula_k8s_container_cpu_limit = row['opennebula_k8s_container_cpu_limit'] 
+        opennebula_k8s_container_cpu_request = row['opennebula_k8s_container_cpu_request'] 
+        opennebula_k8s_node_allocatable_cpu = row['opennebula_k8s_node_allocatable_cpu'] 
+        opennebula_k8s_node_cpu_utilization = row['opennebula_k8s_node_cpu_utilization'] 
+        
+        
         # Insertar datos en PostgreSQL
         insert_query = f'''
             INSERT INTO {config['db_table']} (
                 _time,
                 one_vm_name,
-                one_vm_worker,
-                orchestrator_cloud_k8s_pod_cpu_utilization,
-                orchestrator_media_k8s_pod_cpu_utilization
+                opennebula_k8s_container_cpu_limit,
+                opennebula_k8s_container_cpu_request,
+                opennebula_k8s_node_allocatable_cpu,
+                opennebula_k8s_node_cpu_utilization
                 )
-                VALUES (%s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 ON CONFLICT (_time,one_vm_name) DO NOTHING;
             '''
         pg_cursor.execute(insert_query, (
             _time,
             one_vm_name,
-            one_vm_worker,
-            orchestrator_cloud_k8s_pod_cpu_utilization,
-            orchestrator_media_k8s_pod_cpu_utilization
+            opennebula_k8s_container_cpu_limit,
+            opennebula_k8s_container_cpu_request,
+            opennebula_k8s_node_allocatable_cpu,
+            opennebula_k8s_node_cpu_utilization
             )
             )
         
