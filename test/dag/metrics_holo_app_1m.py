@@ -31,7 +31,7 @@ config = {
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': datetime(2024, 12, 22, tzinfo=pytz.UTC),
+    'start_date': datetime.combine(datetime.now().date(), time(8, 0)),
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
@@ -67,6 +67,7 @@ def ingest(ti):
             PRIMARY KEY (_time, one_vm_name)
             );
         ''')
+    pg_conn.commit()
   
     # Obtener la última marca de tiempo de sincronización de PostgreSQL
     table = config['db_table']
