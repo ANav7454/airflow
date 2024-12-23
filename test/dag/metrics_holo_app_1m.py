@@ -5,7 +5,7 @@ import pandas as pd
 import psycopg2
 import pytz
 from influxdb_client import InfluxDBClient
-import re
+#import re
 
 
 # Configuración básica de DAG
