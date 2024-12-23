@@ -5,7 +5,7 @@ import pandas as pd
 import psycopg2
 import pytz
 from influxdb_client import InfluxDBClient
-#import re
+import re
 
 
 # Configuración básica de DAG
@@ -23,7 +23,7 @@ config = {
     
     'bucket': "metrics",
     'window_period': "1m",
-     'services_regex': "/^(orchestrator-.*)$/",
+    'holo_app_regex': "/^(orchestrator-.*)$/",
     'default_start_time': datetime(1970, 1, 1, tzinfo=pytz.UTC)
 }
 
@@ -68,12 +68,6 @@ def ingest(ti):
             );
         ''')
     pg_conn.commit()
-    pg_cursor.close()
-    pg_conn.close()
-
-
-    pg_conn = psycopg2.connect(host=config['db_host'], database=config['db_database'], user=config['db_user'], password=config['db_password'])
-    pg_cursor = pg_conn.cursor()
     # Obtener la última marca de tiempo de sincronización de PostgreSQL
     table = config['db_table']
     pg_cursor.execute(f'SELECT MAX(_time) FROM {table};')
