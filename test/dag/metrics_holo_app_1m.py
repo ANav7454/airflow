@@ -31,7 +31,7 @@ config = {
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': datetime.combine(datetime.now().date(), time(8, 0)),  # Empieza a las 8:00 del día actual
+    'start_date': datetime(2024, 12, 22, tzinfo=pytz.UTC),
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
