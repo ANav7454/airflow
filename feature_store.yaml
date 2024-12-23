@@ -9,10 +9,8 @@ online_store:
 entity_key_serialization_version: 2
 offline_store:
     type: postgres
-    #host: postgres.observability.svc.cluster.local
-    #port: 5432
-    host: 172.27.13.237
-    port: 30104
+    host: postgres.observability.svc.cluster.local
+    port: 5432
     database: metrics
     db_schema: public
     user: admin
