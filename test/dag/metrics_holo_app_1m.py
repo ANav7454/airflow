@@ -68,7 +68,12 @@ def ingest(ti):
             );
         ''')
     pg_conn.commit()
-  
+    pg_cursor.close()
+    pg_conn.close()
+
+
+    pg_conn = psycopg2.connect(host=config['db_host'], database=config['db_database'], user=config['db_user'], password=config['db_password'])
+    pg_cursor = pg_conn.cursor()
     # Obtener la última marca de tiempo de sincronización de PostgreSQL
     table = config['db_table']
     pg_cursor.execute(f'SELECT MAX(_time) FROM {table};')
@@ -100,15 +105,6 @@ def ingest(ti):
     result = query_api.query_data_frame(query=query, org=config['org'])
     client.close()
 
-    if isinstance(result, list):  # Verifica si es una lista
-        result = pd.concat(result, ignore_index=True)
-    else:
-        result = result  # Si no es lista, asume que ya es un DataFrame
-    result = result[result['one_vm_name'].notna()]
-
-    columns = ['_time','_measurement','_value']
-    result = result[columns]
-
     # Guardar el resultado en XComs
     ti.xcom_push(key='raw_data', value=result)
 
@@ -118,6 +114,12 @@ def transform(ti):
 
     # Recoger los datos del paso anterior
     raw_data = ti.xcom_pull(key='raw_data', task_ids='ingest_task')
+
+    if isinstance(raw_data, list):  # Verifica si es una lista
+        raw_data = pd.concat(raw_data, ignore_index=True)
+    else:
+        raw_data = raw_data  # Si no es lista, asume que ya es un DataFrame
+    raw_data = raw_data[raw_data['one_vm_name'].notna()]
 
     # Función para normalizar el campo one_vm_name
     def normalize_name(name):
@@ -153,7 +155,7 @@ def transform(ti):
     grouped_df_sorted = grouped_df.sort_values(by='_time', ascending=False).reset_index(drop=True)
 
     # Pivotar los datos e incluir `one_vm_name`
-    pivot_df = holo_app_sorted.pivot_table(index=['_time', 'one_vm_name','one_vm_worker'], columns='_measurement', values='_value', dropna=False).reset_index()
+    pivot_df = grouped_df_sorted.pivot_table(index=['_time', 'one_vm_name','one_vm_worker'], columns='_measurement', values='_value', dropna=False).reset_index()
     pivot_df = pivot_df.dropna()
     
     # Convertir la columna _time a tipo datetime
