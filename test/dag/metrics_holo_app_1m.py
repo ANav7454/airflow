@@ -19,7 +19,7 @@ config = {
     'db_database': "metrics",
     'db_user': "admin",
     'db_password': "admin1234",
-    'db_table': "metrics_holo_app_1m",
+    'db_table': "metrics_holo_k8s_1m",
     
     'bucket': "metrics",
     'window_period': "1m",
@@ -179,11 +179,15 @@ def load(ti):
     for index, row in transformed_data.iterrows():
         
         # Extraer los valores de las columnas del DataFrame
-        _time = row['_time']
-        one_vm_name = row['one_vm_name']
-        one_vm_worker = row['one_vm_worker']
-        orchestrator_cloud_k8s_pod_cpu_utilization = row['orchestrator_cloud_k8s_pod_cpu_utilization'] 
-        orchestrator_media_k8s_pod_cpu_utilization = row['orchestrator_media_k8s_pod_cpu_utilization'] 
+        _time = row['_time_']
+        one_vm_name = row['one_vm_name_']
+        one_vm_worker = row['one_vm_worker_']
+        orchestrator_cloud_k8s_pod_cpu_utilization_mean = row['value_mean_orchestrator_cloud_k8s_pod_cpu_utilization'] 
+        orchestrator_media_k8s_pod_cpu_utilization_mean = row['value_mean_orchestrator_media_k8s_pod_cpu_utilization'] 
+        orchestrator_cloud_k8s_pod_cpu_utilization_min = row['value_min_orchestrator_cloud_k8s_pod_cpu_utilization'] 
+        orchestrator_media_k8s_pod_cpu_utilization_min = row['value_min_orchestrator_media_k8s_pod_cpu_utilization'] 
+        orchestrator_cloud_k8s_pod_cpu_utilization_max = row['value_max_orchestrator_cloud_k8s_pod_cpu_utilization'] 
+        orchestrator_media_k8s_pod_cpu_utilization_max = row['value_max_orchestrator_media_k8s_pod_cpu_utilization'] 
             
         # Insertar datos en PostgreSQL
         insert_query = f'''
@@ -191,18 +195,26 @@ def load(ti):
                 _time,
                 one_vm_name,
                 one_vm_worker,
-                orchestrator_cloud_k8s_pod_cpu_utilization,
-                orchestrator_media_k8s_pod_cpu_utilization
+                orchestrator_cloud_k8s_pod_cpu_utilization_mean,
+                orchestrator_media_k8s_pod_cpu_utilization_mean,
+                orchestrator_cloud_k8s_pod_cpu_utilization_min,
+                orchestrator_media_k8s_pod_cpu_utilization_min,
+                orchestrator_cloud_k8s_pod_cpu_utilization_max,
+                orchestrator_media_k8s_pod_cpu_utilization_max
                 )
-                VALUES (%s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (_time,one_vm_name) DO NOTHING;
             '''
         pg_cursor.execute(insert_query, (
             _time,
             one_vm_name,
             one_vm_worker,
-            orchestrator_cloud_k8s_pod_cpu_utilization,
-            orchestrator_media_k8s_pod_cpu_utilization
+            orchestrator_cloud_k8s_pod_cpu_utilization_mean,
+            orchestrator_media_k8s_pod_cpu_utilization_mean,
+            orchestrator_cloud_k8s_pod_cpu_utilization_min,
+            orchestrator_media_k8s_pod_cpu_utilization_min,
+            orchestrator_cloud_k8s_pod_cpu_utilization_max,
+            orchestrator_media_k8s_pod_cpu_utilization_max
             )
             )
         
