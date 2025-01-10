@@ -62,8 +62,12 @@ def ingest(ti):
             _time TIMESTAMP WITH TIME ZONE NOT NULL,
             one_vm_name VARCHAR NOT NULL,
             one_vm_worker VARCHAR NOT NULL,
-            orchestrator_cloud_k8s_pod_cpu_utilization FLOAT,
-            orchestrator_media_k8s_pod_cpu_utilization FLOAT,
+            orchestrator_cloud_k8s_pod_cpu_utilization_mean FLOAT,
+            orchestrator_media_k8s_pod_cpu_utilization_mean FLOAT,
+            orchestrator_cloud_k8s_pod_cpu_utilization_min FLOAT,
+            orchestrator_cloud_k8s_pod_cpu_utilization_max FLOAT,
+            orchestrator_media_k8s_pod_cpu_utilization_min FLOAT,
+            orchestrator_media_k8s_pod_cpu_utilization_max FLOAT,        
             PRIMARY KEY (_time, one_vm_name)
             );
         ''')
