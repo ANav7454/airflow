@@ -59,8 +59,12 @@ metrics_opennebula_view = FeatureView(
     # for both materialization of features into a store, and are used as references
     # during retrieval for building a training dataset or serving features
     schema=[
-        Field(name="orchestrator_cloud_k8s_pod_cpu_utilization", dtype=Float32),
-        Field(name="orchestrator_media_k8s_pod_cpu_utilization", dtype=Float32),
+        Field(name="orchestrator_cloud_k8s_pod_cpu_utilization_mean", dtype=Float32),
+        Field(name="orchestrator_media_k8s_pod_cpu_utilization_mean", dtype=Float32),
+        Field(name="orchestrator_cloud_k8s_pod_cpu_utilization_max", dtype=Float32),
+        Field(name="orchestrator_media_k8s_pod_cpu_utilization_max", dtype=Float32),
+        Field(name="orchestrator_cloud_k8s_pod_cpu_utilization_min", dtype=Float32),
+        Field(name="orchestrator_media_k8s_pod_cpu_utilization_min", dtype=Float32),
         Field(name="opennebula_k8s_container_cpu_limit", dtype=Float32),
         Field(name="opennebula_k8s_container_cpu_request", dtype=Float32),
         Field(name="opennebula_k8s_node_allocatable_cpu", dtype=Float32),
