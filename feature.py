@@ -12,12 +12,16 @@ from feast.types import Float32, Float64, Int64, String
 driver_opennebula = Entity(name="metrics_edge", join_keys=["one_vm_name"])
 driver_stats_source_opennebula = PostgreSQLSource(
     name="metrics__service_opennebula",
-    query='''SELECT 
+    query='''SELECT
             holo._time,
             holo.one_vm_name,
             holo.one_vm_worker,
-            holo.orchestrator_cloud_k8s_pod_cpu_utilization,
-            holo.orchestrator_media_k8s_pod_cpu_utilization,
+            holo.orchestrator_cloud_k8s_pod_cpu_utilization_mean ,
+            holo.orchestrator_media_k8s_pod_cpu_utilization_mean ,
+            holo.orchestrator_cloud_k8s_pod_cpu_utilization_min ,
+            holo.orchestrator_media_k8s_pod_cpu_utilization_min ,
+            holo.orchestrator_cloud_k8s_pod_cpu_utilization_max ,
+            holo.orchestrator_media_k8s_pod_cpu_utilization_max ,
             k8s.opennebula_k8s_container_cpu_limit,
             k8s.opennebula_k8s_container_cpu_request,
             k8s.opennebula_k8s_node_allocatable_cpu,
@@ -30,15 +34,15 @@ driver_stats_source_opennebula = PostgreSQLSource(
             libvirt.opennebula_libvirt_vcpu_state,
             libvirt.opennebula_libvirt_vcpu_time_seconds_total,
             libvirt.opennebula_libvirt_vcpu_wait_seconds_total
-        FROM 
-            metrics_holo_app_1m AS holo
-        INNER JOIN 
+        FROM
+            metrics_holo_k8s_1m AS holo
+        INNER JOIN
             metrics_opennebula_libvirt_1m AS libvirt
-        ON 
+        ON
             holo._time = libvirt._time AND holo.one_vm_worker = libvirt.one_vm_worker
-        INNER JOIN 
+        INNER JOIN
             metrics_opennebula_k8s_1m AS k8s
-        ON 
+        ON
             holo._time = k8s._time AND holo.one_vm_name = k8s.one_vm_name
         ''',
     timestamp_field="_time",
