@@ -39,9 +39,9 @@ default_args = {
 }
 
 dag = DAG(
-    'metrics_holo_app_1m',
+    'metrics_holo_k8s_1m',
     default_args=default_args,
-    description='Metrics holo app 1m',
+    description='Metrics holo k8s 1m',
     schedule_interval=timedelta(minutes=1),
     tags=["i2cat_etl"],
     concurrency=5,  # Limita la concurrencia a 5 tareas
