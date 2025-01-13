@@ -190,12 +190,16 @@ def transform(ti):
     pivot_df = grouped_df_sorted.pivot_table(index=['_time', 'one_vm_name','one_vm_worker'], columns='_measurement', values=['value_mean', 'value_min', 'value_max'], dropna=False).reset_index()
     pivot_df = pivot_df.dropna()
     
+    pivot_df.columns = ['_'.join(col).strip() if isinstance(col, tuple) else col for col in pivot_df.columns]
+
     # Convertir la columna _time a tipo datetime
-    pivot_df['_time'] = pd.to_datetime(pivot_df['_time'])
+    pivot_df['_time_'] = pd.to_datetime(pivot_df['_time_'])
 
     # Filtrar los resultados que tengan intervalos de 1 minuto exacto
-    filtered_df = pivot_df[(pivot_df['_time'].dt.second == 0)].copy()
+    filtered_df = pivot_df[(pivot_df['_time_'].dt.second == 0)].copy()
     transformed_data = filtered_df
+    
+    transformed_data.columns = transformed_data.columns.str.replace(r'\.', '_', regex=True)
 
     # Guardar los datos transformados para la siguiente tarea
     ti.xcom_push(key='transformed_data', value=transformed_data)
