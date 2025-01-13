@@ -190,6 +190,8 @@ def transform(ti):
     pivot_df = grouped_df_sorted.pivot_table(index=['_time', 'one_vm_name','one_vm_worker'], columns='_measurement', values=['value_mean', 'value_min', 'value_max'], dropna=False).reset_index()
     pivot_df = pivot_df.dropna()
     
+    pivot_df.columns = ['_'.join(col).strip() if isinstance(col, tuple) else col for col in pivot_df.columns]
+
     # Convertir la columna _time a tipo datetime
     pivot_df['_time'] = pd.to_datetime(pivot_df['_time'])
 
