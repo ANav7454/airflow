@@ -129,7 +129,7 @@ def transform(ti):
         return "orchestrator_"+name.split('-')[1]  # Mantener solo la parte antes del primer guion
     
     # Seleccionar las columnas relevantes y crear una copia explícita
-    columns = ['_time', '_measurement', '_value', 'one_vm_name', 'one_vm_worker', 'k8s.pod.name']
+    columns = ['_time', '_measurement', 'value_mean','value_max','value_min', 'one_vm_name', 'one_vm_worker', 'k8s.pod.name']
     holo_app = raw_data[columns].copy()  # Agrega .copy() para evitar SettingWithCopyWarning
 
     # Modificar las columnas utilizando .loc
@@ -149,11 +149,12 @@ def transform(ti):
     holo_app_sorted['_measurement'] = holo_app_sorted['_measurement'].str.replace(".", "_")
 
     # Agrupar y calcular el promedio de _value
-    grouped_df = holo_app_sorted.groupby(["_time", "_measurement", "one_vm_name", "one_vm_worker"])["_value"].mean().reset_index()
+    grouped_df = holo_app_sorted.groupby(["_time", "_measurement", "one_vm_name", "one_vm_worker"]).agg(value_mean=("value_mean", "mean"),value_min=("value_min", "min"),value_max=("value_max", "max")).reset_index()
+
     grouped_df_sorted = grouped_df.sort_values(by='_time', ascending=False).reset_index(drop=True)
 
     # Pivotar los datos e incluir `one_vm_name`
-    pivot_df = grouped_df_sorted.pivot_table(index=['_time', 'one_vm_name','one_vm_worker'], columns='_measurement', values='_value', dropna=False).reset_index()
+    pivot_df = grouped_df_sorted.pivot_table(index=['_time', 'one_vm_name','one_vm_worker'], columns='_measurement', values=['value_mean', 'value_min', 'value_max'], dropna=False).reset_index()
     pivot_df = pivot_df.dropna()
     
     # Convertir la columna _time a tipo datetime
