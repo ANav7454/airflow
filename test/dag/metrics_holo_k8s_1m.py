@@ -196,6 +196,7 @@ def transform(ti):
     # Filtrar los resultados que tengan intervalos de 1 minuto exacto
     filtered_df = pivot_df[(pivot_df['_time'].dt.second == 0)].copy()
     transformed_data = filtered_df
+    transformed_data.columns = transformed_data.columns.str.replace(r'\.', '_', regex=True)
 
     # Guardar los datos transformados para la siguiente tarea
     ti.xcom_push(key='transformed_data', value=transformed_data)
