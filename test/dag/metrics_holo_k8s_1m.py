@@ -88,15 +88,33 @@ def ingest(ti):
 
 
     query = f'''
-        from(bucket: "{config['bucket']}")
-        |> range(start: {timeRangeStart}, stop: {timeRangeStop})
-        |> filter(fn: (r) =>
-            r["_measurement"] == "k8s.pod.cpu.utilization")
-        |> filter(fn: (r) => r["_field"] == "gauge")
-        |> filter(fn: (r) => r["k8s.pod.name"] =~ {config['holo_app_regex']})
-        |> aggregateWindow(every: {config['window_period']}, fn: mean, createEmpty: false)
-        |> yield(name: "mean")
-        '''
+    from(bucket: "{config['bucket']}")
+    |> range(start: {timeRangeStart}, stop: {timeRangeStop})
+    |> filter(fn: (r) =>
+        r["_measurement"] == "k8s.pod.cpu.utilization")
+    |> filter(fn: (r) => r["_field"] == "gauge")
+    |> filter(fn: (r) => r["k8s.pod.name"] =~ {config['holo_app_regex']})
+    |> aggregateWindow(every: {config['window_period']}, fn: mean, createEmpty: false)
+    |> yield(name: "mean")
+
+    from(bucket: "{config['bucket']}")
+    |> range(start: {timeRangeStart}, stop: {timeRangeStop})
+    |> filter(fn: (r) =>
+        r["_measurement"] == "k8s.pod.cpu.utilization")
+    |> filter(fn: (r) => r["_field"] == "gauge")
+    |> filter(fn: (r) => r["k8s.pod.name"] =~ {config['holo_app_regex']})
+    |> aggregateWindow(every: {config['window_period']}, fn: max, createEmpty: false)
+    |> yield(name: "max")
+
+    from(bucket: "{config['bucket']}")
+    |> range(start: {timeRangeStart}, stop: {timeRangeStop})
+    |> filter(fn: (r) =>
+        r["_measurement"] == "k8s.pod.cpu.utilization")
+    |> filter(fn: (r) => r["_field"] == "gauge")
+    |> filter(fn: (r) => r["k8s.pod.name"] =~ {config['holo_app_regex']})
+    |> aggregateWindow(every: {config['window_period']}, fn: min, createEmpty: false)
+    |> yield(name: "min")
+    '''
         
     client = InfluxDBClient(url=config['influxdb_url'],token=config['token'],org=config['org'])
     query_api = client.query_api()
