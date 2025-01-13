@@ -137,6 +137,21 @@ def transform(ti):
         raw_data = raw_data  # Si no es lista, asume que ya es un DataFrame
     raw_data = raw_data[raw_data['one_vm_name'].notna()]
 
+    pivoted_result = raw_data.pivot_table(
+        index=['_time', '_start', '_stop', 'k8s.namespace.name', 'k8s.pod.name', 
+            'k8s.pod.uid', 'one_vm_name', 'one_vm_worker', '_measurement', 'otel.library.name', 'otel.library.version'],
+        columns='result',
+        values='_value'
+    ).reset_index()
+
+    pivoted_result.rename(columns={
+        'mean': 'value_mean',
+        'max': 'value_max',
+        'min': 'value_min'
+    }, inplace=True)
+
+    raw_data = pivoted_result
+
     # Función para normalizar el campo one_vm_name
     def normalize_name(name):
         # Usar una expresión regular para eliminar todo después del primer paréntesis
