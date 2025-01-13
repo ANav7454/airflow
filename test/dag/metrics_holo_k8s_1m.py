@@ -191,7 +191,7 @@ def transform(ti):
     pivot_df = pivot_df.dropna()
     
     # Convertir la columna _time a tipo datetime
-    raw_data['_time'] = pd.to_datetime(raw_data['_time'])
+    pivot_df['_time'] = pd.to_datetime(pivot_df['_time'])
 
     # Filtrar los resultados que tengan intervalos de 1 minuto exacto
     filtered_df = pivot_df[(pivot_df['_time'].dt.second == 0)].copy()
