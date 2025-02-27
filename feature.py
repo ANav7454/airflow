@@ -13,43 +13,27 @@ driver_opennebula = Entity(name="metrics_edge", join_keys=["one_vm_name"])
 driver_stats_source_opennebula = PostgreSQLSource(
     name="metrics__service_opennebula",
     query='''SELECT
-            holo._time,
-            holo.one_vm_name,
-            holo.one_vm_worker,
-            holo.orchestrator_cloud_k8s_pod_cpu_utilization_mean ,
-            holo.orchestrator_media_k8s_pod_cpu_utilization_mean ,
-            holo.orchestrator_cloud_k8s_pod_cpu_utilization_min ,
-            holo.orchestrator_media_k8s_pod_cpu_utilization_min ,
-            holo.orchestrator_cloud_k8s_pod_cpu_utilization_max ,
-            holo.orchestrator_media_k8s_pod_cpu_utilization_max ,
-            k8s.opennebula_k8s_container_cpu_limit,
-            k8s.opennebula_k8s_container_cpu_request,
-            k8s.opennebula_k8s_node_allocatable_cpu,
-            k8s.opennebula_k8s_node_cpu_utilization,
-            libvirt.opennebula_libvirt_cpu_seconds_total,
-            libvirt.opennebula_libvirt_cpu_system_seconds_total,
-            libvirt.opennebula_libvirt_cpu_user_seconds_total,
-            libvirt.opennebula_libvirt_vcpu_maximum,
-            libvirt.opennebula_libvirt_vcpu_online,
-            libvirt.opennebula_libvirt_vcpu_state,
-            libvirt.opennebula_libvirt_vcpu_time_seconds_total,
-            libvirt.opennebula_libvirt_vcpu_wait_seconds_total
-        FROM
-            metrics_holo_k8s_1m AS holo
-        INNER JOIN
-            metrics_opennebula_libvirt_1m AS libvirt
-        ON
-            holo._time = libvirt._time AND holo.one_vm_worker = libvirt.one_vm_worker
-        INNER JOIN
-            metrics_opennebula_k8s_1m AS k8s
-        ON
-            holo._time = k8s._time AND holo.one_vm_name = k8s.one_vm_name
+                t1._time,
+                t1.one_vm_name,
+                t1.one_vm_worker,
+                t1.value_max_orchestrator_k8s_pod_cpu_utilization,
+                t1.value_mean_orchestrator_k8s_pod_cpu_utilization,
+                t1.value_min_orchestrator_k8s_pod_cpu_utilization,
+                t2.value_mean_RGBD_latency_ms,
+                t2.value_mean_fps,
+                t2.value_mean_sessions_count
+            FROM
+                metrics_holo_k8s_1m t1
+            JOIN
+                metrics_holo_app_1m t2
+            ON
+                t1._time = t2._time
         ''',
     timestamp_field="_time",
     #created_timestamp_column="created",
 )
 
-metrics_opennebula_view = FeatureView(
+metrics_holo_view = FeatureView(
     # The unique name of this feature view. Two feature views in a single
     # project cannot have the same name
     name="opennebula_feature",
@@ -59,24 +43,12 @@ metrics_opennebula_view = FeatureView(
     # for both materialization of features into a store, and are used as references
     # during retrieval for building a training dataset or serving features
     schema=[
-        Field(name="orchestrator_cloud_k8s_pod_cpu_utilization_mean", dtype=Float32),
-        Field(name="orchestrator_media_k8s_pod_cpu_utilization_mean", dtype=Float32),
-        Field(name="orchestrator_cloud_k8s_pod_cpu_utilization_max", dtype=Float32),
-        Field(name="orchestrator_media_k8s_pod_cpu_utilization_max", dtype=Float32),
-        Field(name="orchestrator_cloud_k8s_pod_cpu_utilization_min", dtype=Float32),
-        Field(name="orchestrator_media_k8s_pod_cpu_utilization_min", dtype=Float32),
-        Field(name="opennebula_k8s_container_cpu_limit", dtype=Float32),
-        Field(name="opennebula_k8s_container_cpu_request", dtype=Float32),
-        Field(name="opennebula_k8s_node_allocatable_cpu", dtype=Float32),
-        Field(name="opennebula_k8s_node_cpu_utilization", dtype=Float32),
-        Field(name="opennebula_libvirt_cpu_seconds_total", dtype=Float32),
-        Field(name="opennebula_libvirt_cpu_system_seconds_total", dtype=Float32),
-        Field(name="opennebula_libvirt_cpu_user_seconds_total", dtype=Float32),
-        Field(name="opennebula_libvirt_vcpu_maximum", dtype=Float32),
-        Field(name="opennebula_libvirt_vcpu_online", dtype=Float32),
-        Field(name="opennebula_libvirt_vcpu_state", dtype=Float32),
-        Field(name="opennebula_libvirt_vcpu_time_seconds_total", dtype=Float32),
-        Field(name="opennebula_libvirt_vcpu_wait_seconds_total", dtype=Float32)
+        Field(name="value_max_orchestrator_k8s_pod_cpu_utilization", dtype=Float32),
+        Field(name="value_mean_orchestrator_k8s_pod_cpu_utilization", dtype=Float32),
+        Field(name="value_min_orchestrator_k8s_pod_cpu_utilization", dtype=Float32),
+        Field(name="value_mean_RGBD_latency_ms", dtype=Float32),
+        Field(name="value_mean_fps", dtype=Float32),
+        Field(name="value_mean_sessions_count", dtype=Float32),
     ],
     online=True,
     source=driver_stats_source_opennebula,
@@ -84,7 +56,7 @@ metrics_opennebula_view = FeatureView(
     # feature view
     #tags={"team": "ramp"},
 )
-metrics_opennebula_service = FeatureService(
-    name="opennebula_feature",
-    features=[metrics_opennebula_view]
+metrics_holo_service = FeatureService(
+    name="holo_feature",
+    features=[metrics_holo_view]
 )
