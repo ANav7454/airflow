@@ -36,7 +36,7 @@ driver_stats_source_opennebula = PostgreSQLSource(
 metrics_holo_view = FeatureView(
     # The unique name of this feature view. Two feature views in a single
     # project cannot have the same name
-    name="opennebula_feature",
+    name="holo_feature",
     entities=[driver_opennebula],
     ttl=timedelta(days=1),
     # The list of features defined below act as a schema to both define features
