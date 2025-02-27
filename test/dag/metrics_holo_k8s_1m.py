@@ -56,21 +56,18 @@ def ingest(ti):
     pg_conn = psycopg2.connect(host=config['db_host'], database=config['db_database'], user=config['db_user'], password=config['db_password'])
     pg_cursor = pg_conn.cursor()
 
-    # Asegúrate de que la tabla exista en PostgreSQL
+# Asegúrate de que la tabla exista en PostgreSQL
     pg_cursor.execute(f'''
-            CREATE TABLE IF NOT EXISTS {config['db_table']} (
+        CREATE TABLE IF NOT EXISTS {config['db_table']} (
             _time TIMESTAMP WITH TIME ZONE NOT NULL,
             one_vm_name VARCHAR NOT NULL,
             one_vm_worker VARCHAR NOT NULL,
-            orchestrator_cloud_k8s_pod_cpu_utilization_mean FLOAT,
-            orchestrator_media_k8s_pod_cpu_utilization_mean FLOAT,
-            orchestrator_cloud_k8s_pod_cpu_utilization_min FLOAT,
-            orchestrator_cloud_k8s_pod_cpu_utilization_max FLOAT,
-            orchestrator_media_k8s_pod_cpu_utilization_min FLOAT,
-            orchestrator_media_k8s_pod_cpu_utilization_max FLOAT,        
+            value_max_orchestrator_k8s_pod_cpu_utilization FLOAT,
+            value_mean_orchestrator_k8s_pod_cpu_utilization FLOAT,
+            value_min_orchestrator_k8s_pod_cpu_utilization FLOAT,
             PRIMARY KEY (_time, one_vm_name)
-            );
-        ''')
+        );
+    ''')
     pg_conn.commit()
     # Obtener la última marca de tiempo de sincronización de PostgreSQL
     table = config['db_table']
@@ -115,6 +112,7 @@ def ingest(ti):
     |> aggregateWindow(every: {config['window_period']}, fn: min, createEmpty: false)
     |> yield(name: "min")
     '''
+
         
     client = InfluxDBClient(url=config['influxdb_url'],token=config['token'],org=config['org'])
     query_api = client.query_api()
@@ -159,7 +157,13 @@ def transform(ti):
 
     # Función personalizada para normalizar `k8s.pod.name`
     def normalize_pod_name(name):
-        return "orchestrator_"+name.split('-')[1]  # Mantener solo la parte antes del primer guion
+        # Verifica si el nombre del pod comienza con 'orchestrator' o 'sfu' y realiza la normalización
+        if name.startswith('orchestrator'):
+            return 'orchestrator'  # Mantener solo el prefijo 'orchestrator-'
+        elif name.startswith('sfu'):
+            return 'sfu'  # Mantener solo el prefijo 'sfu-'
+        else:
+            return name  
     
     # Seleccionar las columnas relevantes y crear una copia explícita
     columns = ['_time', '_measurement', 'value_mean','value_max','value_min', 'one_vm_name', 'one_vm_worker', 'k8s.pod.name']
@@ -215,8 +219,9 @@ def load(ti):
     pg_conn = psycopg2.connect(host=config['db_host'], database=config['db_database'], user=config['db_user'], password=config['db_password'])
     pg_cursor = pg_conn.cursor()
 
-    # Número de resultados a insertar
+# Número de resultados a insertar
     inserted_records_count = 0  # Contador de registros insertados
+
     # Insertar datos transformados (simulando)
     for index, row in transformed_data.iterrows():
         
@@ -224,48 +229,39 @@ def load(ti):
         _time = row['_time_']
         one_vm_name = row['one_vm_name_']
         one_vm_worker = row['one_vm_worker_']
-        orchestrator_cloud_k8s_pod_cpu_utilization_mean = row['value_mean_orchestrator_cloud_k8s_pod_cpu_utilization'] 
-        orchestrator_media_k8s_pod_cpu_utilization_mean = row['value_mean_orchestrator_media_k8s_pod_cpu_utilization'] 
-        orchestrator_cloud_k8s_pod_cpu_utilization_min = row['value_min_orchestrator_cloud_k8s_pod_cpu_utilization'] 
-        orchestrator_media_k8s_pod_cpu_utilization_min = row['value_min_orchestrator_media_k8s_pod_cpu_utilization'] 
-        orchestrator_cloud_k8s_pod_cpu_utilization_max = row['value_max_orchestrator_cloud_k8s_pod_cpu_utilization'] 
-        orchestrator_media_k8s_pod_cpu_utilization_max = row['value_max_orchestrator_media_k8s_pod_cpu_utilization'] 
-            
+        value_max_orchestrator_k8s_pod_cpu_utilization = row['value_max_orchestrator_k8s_pod_cpu_utilization']
+        value_mean_orchestrator_k8s_pod_cpu_utilization = row['value_mean_orchestrator_k8s_pod_cpu_utilization']
+        value_min_orchestrator_k8s_pod_cpu_utilization = row['value_min_orchestrator_k8s_pod_cpu_utilization']
+        
         # Insertar datos en PostgreSQL
         insert_query = f'''
             INSERT INTO {config['db_table']} (
                 _time,
                 one_vm_name,
                 one_vm_worker,
-                orchestrator_cloud_k8s_pod_cpu_utilization_mean,
-                orchestrator_media_k8s_pod_cpu_utilization_mean,
-                orchestrator_cloud_k8s_pod_cpu_utilization_min,
-                orchestrator_media_k8s_pod_cpu_utilization_min,
-                orchestrator_cloud_k8s_pod_cpu_utilization_max,
-                orchestrator_media_k8s_pod_cpu_utilization_max
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (_time,one_vm_name) DO NOTHING;
-            '''
+                value_max_orchestrator_k8s_pod_cpu_utilization,
+                value_mean_orchestrator_k8s_pod_cpu_utilization,
+                value_min_orchestrator_k8s_pod_cpu_utilization
+            )
+            VALUES (%s, %s, %s, %s, %s, %s)
+            ON CONFLICT (_time, one_vm_name) DO NOTHING;
+        '''
         pg_cursor.execute(insert_query, (
             _time,
             one_vm_name,
             one_vm_worker,
-            orchestrator_cloud_k8s_pod_cpu_utilization_mean,
-            orchestrator_media_k8s_pod_cpu_utilization_mean,
-            orchestrator_cloud_k8s_pod_cpu_utilization_min,
-            orchestrator_media_k8s_pod_cpu_utilization_min,
-            orchestrator_cloud_k8s_pod_cpu_utilization_max,
-            orchestrator_media_k8s_pod_cpu_utilization_max
-            )
-            )
-        
+            value_max_orchestrator_k8s_pod_cpu_utilization,
+            value_mean_orchestrator_k8s_pod_cpu_utilization,
+            value_min_orchestrator_k8s_pod_cpu_utilization
+        ))
+
         inserted_records_count += 1
 
     print(f'Número de registros insertados: {inserted_records_count}')
     pg_conn.commit()
     pg_cursor.close()
     pg_conn.close()
+
 
 
 # Definición de tareas en Airflow
