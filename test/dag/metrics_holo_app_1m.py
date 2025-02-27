@@ -124,7 +124,7 @@ def transform(ti):
         raw_data = raw_data  # Si no es lista, asume que ya es un DataFrame
 
     # Pivotar el DataFrame basado en el campo 'result'
-    pivoted_result = result.pivot_table(
+    pivoted_result = raw_data.pivot_table(
         index=['_time', '_start', '_stop', 'service.name', '_measurement'],
         columns='result',
         values='_value'
