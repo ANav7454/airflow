@@ -19,7 +19,7 @@ config = {
     'db_database': "metrics",
     'db_user': "admin",
     'db_password': "admin1234",
-    'db_table': "metrics_holo_k8s_1m",
+    'db_table': "metrics_holo_app_1m",
     
     'bucket': "holo_metrics",
     'window_period': "1m",
