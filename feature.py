@@ -19,7 +19,7 @@ driver_stats_source_opennebula = PostgreSQLSource(
                 t1.value_max_orchestrator_k8s_pod_cpu_utilization,
                 t1.value_mean_orchestrator_k8s_pod_cpu_utilization,
                 t1.value_min_orchestrator_k8s_pod_cpu_utilization,
-                t2.value_mean_RGBD_latency_ms,
+                t2.value_mean_rgbd_latency_ms,
                 t2.value_mean_fps,
                 t2.value_mean_sessions_count
             FROM
@@ -46,7 +46,7 @@ metrics_holo_view = FeatureView(
         Field(name="value_max_orchestrator_k8s_pod_cpu_utilization", dtype=Float32),
         Field(name="value_mean_orchestrator_k8s_pod_cpu_utilization", dtype=Float32),
         Field(name="value_min_orchestrator_k8s_pod_cpu_utilization", dtype=Float32),
-        Field(name="value_mean_RGBD_latency_ms", dtype=Float32),
+        Field(name="value_mean_rgbd_latency_ms", dtype=Float32),
         Field(name="value_mean_fps", dtype=Float32),
         Field(name="value_mean_sessions_count", dtype=Float32),
     ],
